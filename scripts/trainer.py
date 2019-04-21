@@ -100,7 +100,7 @@ class Trainer(object):
           loss = 0.
       print ('epoch {epoch} loss: {loss}'.format(epoch=epoch, loss=epoch_loss.item()/n_points))
       
-  def predict(self, test_data_mapping, log_every_step=10000):
+  def predict(self, test_data_mapping, log_every_step=1000000):
     n_points = len(test_data_mapping)
     test_data = self.load_data_from_files(test_data_mapping)
     dataset = SpectraDataset(test_data, 1, sort=False)

@@ -49,9 +49,8 @@ class TestModel(nn.Module):
     self.att_module = MultiheadAttention(Q_dim=self.hidden_dim_lstm,
                                          V_dim=self.hidden_dim_lstm,
                                          head_dim=self.hidden_dim_attention,
-                                         n_heads=self.n_attention_heads)
-#    self.conv_module = CombinedConv1D(input_dim=self.hidden_dim_lstm,
-#                                      conv_dim=self.hidden_dim_attention)
+                                         n_heads=self.n_attention_heads,
+                                         normalization=True)
     self.fc = nn.Sequential(
         nn.Linear(self.hidden_dim_lstm * 2, 64),
         nn.ReLU(True),
@@ -66,10 +65,9 @@ class TestModel(nn.Module):
     lstm_inputs = t.cat([embedded_inputs, metas], 2)
     lstm_outs = self.lstm_module(lstm_inputs, batch_size=batch_size)
     attention_outs = self.att_module(sequence=lstm_outs)
-    #conv_outs = self.conv_module(lstm_outs)
     intervals = t.cat([attention_outs[1:], attention_outs[:-1]], 2)
-    outs = self.fc(intervals)
     # outs of shape: (seq_len - 1) * batch_size * n_tasks
+    outs = self.fc(intervals)
     return outs
 
   def predict(self, sequence, metas, batch_size=1, gpu=True):
