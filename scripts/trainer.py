@@ -64,8 +64,8 @@ class Trainer(object):
       epochs = n_epochs
     n_points = len(data_mapping)
     
-    dataset = SpectraDataset(data_mapping, self.opt.batch_size)
-    data_loader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=4)
+    dataset = SpectraDataset(data_mapping, self.opt.batch_size, train=True)
+    data_loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
     
     for epoch in range(epochs):
       epoch_loss = 0.
@@ -103,7 +103,7 @@ class Trainer(object):
   def predict(self, test_data_mapping, log_every_step=1000000):
     n_points = len(test_data_mapping)
     test_data = self.load_data_from_files(test_data_mapping)
-    dataset = SpectraDataset(test_data, 1, sort=False)
+    dataset = SpectraDataset(test_data, 1, train=False)
     test_preds = []
     
     inputs = [[], []]
@@ -165,7 +165,9 @@ class Trainer(object):
 
 
 class SpectraDataset(Dataset):
-  def __init__(self, sample_file_mapping, batch_size, sort=True):
+  def __init__(self, sample_file_mapping, batch_size, train=True):
+    """ train: set to True to shuffle the order and speed up training
+    """
     self.sample_IDs = list(sample_file_mapping.keys())
     self.n_samples = len(self.sample_IDs)
     self.n_batches = int(np.ceil(float(self.n_samples) / batch_size))
@@ -173,24 +175,53 @@ class SpectraDataset(Dataset):
     self.sample_file_mapping = sample_file_mapping    
     self.batch_size = batch_size
 
-    # Check length non-decreasing
-    if sort:
-      self.sample_IDs = sorted(self.sample_IDs, key=lambda x: sample_file_mapping[x][1])
+    self.cached = set()
+    self.dat = {}
+
+    if type(self.sample_file_mapping[self.sample_IDs[0]][0]) is str:
+      if train:
+        self.sample_IDs = sorted(self.sample_IDs, key=lambda x: (sample_file_mapping[x][1], sample_file_mapping[x][0]))
+      self.batch_samples_IDs = [self.sample_IDs[index*self.batch_size:(index+1)*self.batch_size] \
+                                for index in range(self.n_batches)]
+      self.files_included = [list(set([self.sample_file_mapping[i][0] for i in batch_samples])) \
+                             for batch_samples in self.batch_samples_IDs]
+      if train:
+        np.random.seed(123)
+        all_files = set()
+        for fs in self.files_included:
+          all_files |= set(fs)
+        all_files = sorted(list(all_files))
+        np.random.shuffle(all_files)
+        order = sorted(np.arange(len(self.files_included)), key=lambda x: all_files.index(self.files_included[x][0]))
+        self.batch_samples_IDs = [self.batch_samples_IDs[i] for i in order]
+        self.files_included = [self.files_included[i] for i in order]
+    else:
+      if train:
+        self.sample_IDs = sorted(self.sample_IDs, key=lambda x: sample_file_mapping[x][0].shape[0])
+      self.batch_samples_IDs = [self.sample_IDs[index*self.batch_size:(index+1)*self.batch_size] \
+                                for index in range(self.n_batches)]
+      if train:
+        np.random.seed(123)
+        np.random.shuffle(self.batch_samples_IDs)
   
   def __len__(self):
     return self.n_batches
 
   def __getitem__(self, index):
     
-    batch_samples = self.sample_IDs[index*self.batch_size:(index+1)*self.batch_size]
+    batch_samples = self.batch_samples_IDs[index]
     
     if type(self.sample_file_mapping[batch_samples[0]][0]) is str:
-      files_included = set([self.sample_file_mapping[i][0] for i in batch_samples])
-      dat = {}
-      for f in files_included:
-        dat.update(np.load(f).item())
+      files_included = set(self.files_included[index])
       
-      batch_raw = [dat[i] for i in batch_samples]
+      for f in files_included - self.cached:
+        self.dat.update(np.load(f).item())
+        self.cached.add(f)
+      
+      batch_raw = [self.dat[i] for i in batch_samples]
+      if len(self.cached) > 5:
+        self.dat.clear()
+        self.cached.clear()
     else:
       batch_raw = [self.sample_file_mapping[i] for i in batch_samples]
     batch = self.assemble_batch(batch_raw)
@@ -232,5 +263,3 @@ class SpectraDataset(Dataset):
              np.stack(out_batch_y, axis=1),
              np.array(batch_weights).reshape((-1,)))
     return batch
-
-
