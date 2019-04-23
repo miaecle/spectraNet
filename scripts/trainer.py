@@ -158,7 +158,7 @@ class Trainer(object):
     files_included = set([test_data_mapping[i][0] for i in test_data_mapping])
     dat = {}
     for f in files_included:
-      dat.update(pickle.load(open(f, 'rb')))
+      dat.update(np.load(f).item())
     for i in test_data_mapping:
       test_data[i] = dat[i]
     return test_data
@@ -166,7 +166,7 @@ class Trainer(object):
 
 class SpectraDataset(Dataset):
   def __init__(self, sample_file_mapping, batch_size, sort=True):
-    self.sample_IDs = sorted(list(sample_file_mapping.keys()))
+    self.sample_IDs = list(sample_file_mapping.keys())
     self.n_samples = len(self.sample_IDs)
     self.n_batches = int(np.ceil(float(self.n_samples) / batch_size))
     
@@ -188,7 +188,7 @@ class SpectraDataset(Dataset):
       files_included = set([self.sample_file_mapping[i][0] for i in batch_samples])
       dat = {}
       for f in files_included:
-        dat.update(pickle.load(open(f, 'rb')))
+        dat.update(np.load(f).item())
       
       batch_raw = [dat[i] for i in batch_samples]
     else:

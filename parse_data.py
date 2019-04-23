@@ -36,7 +36,7 @@ amino_acid_modifier_replacements = {
     "Q[129]": "E", #deamidation of asparagine
     "N[115]": "D", #deamidation of glutamine
     "Q[110]": "#",
-    "Q[111]": "#",
+#    "Q[111]": "#",
     "S[167]": "$",
     "T[181]": "%",
     "Y[243]": "^",  
@@ -68,10 +68,10 @@ def one_hot_encode(values, code):
   return result
 
 
-def reverse_one_hot_encode(vectors, code):
+def reverse_one_hot_encode(vectors, code=amino_acid_modified_codes):
   letters = []
   for vector in vectors:
-    i = vector.index(1)  # get the index of the item which is 1
+    i = np.argmax(vector)  # get the index of the item which is 1
     letters.append(code[i])
   return "".join(letters)
 
@@ -121,8 +121,10 @@ def reverse_amino_acid_coding(vectors, charge, has_beginning_modifier=False):
   letters = reverse_one_hot_encode(vectors, amino_acid_modified_codes)
   if has_beginning_modifier:
     letters = "n[43]"+letters
+
   for modifier, code in amino_acid_modifier_replacements.items():
-    letters = letters.replace(code, modifier)
+    if len(code) == 1 and code in amino_acid_modifiers:
+      letters = letters.replace(code, modifier)
 
   letters += "/{}".format(charge)
   return letters
