@@ -37,7 +37,7 @@ n_samples = len(samples)
 train_inputs = {k: inputs[k] for k in samples[:int(0.8*n_samples)]}
 valid_inputs = {k: inputs[k] for k in samples[int(0.8*n_samples):]}
 
-#trainer.load('./models/bkp/model_seq.pth')
+trainer.load('./models/bkp/model_seq.pth')
 for ct in range(10):
   trainer.train(train_inputs, n_epochs=2)
   trainer.save('./models/model-%d.pth' % ct)

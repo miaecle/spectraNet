@@ -1,0 +1,5 @@
+model_trans
+cos-sim: 0.9123
+
+model_seq
+cos-sim: 0.9114
