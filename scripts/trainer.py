@@ -108,11 +108,13 @@ class Trainer(object):
     
     inputs = [[], []]
     labels = []
+    sample_IDs = []
     for i, batch in enumerate(dataset):
       if i > 0 and i%log_every_step == 0:
         print("Finished %d samples" % i)
       X, X_metas, y = batch[0], batch[1], batch[2]
       labels.append(y[:, 0].cpu().data.numpy().reshape((-1, self.net.n_tasks)))
+      sample_IDs.extend(batch[-1])
       if len(inputs[0]) == 0 or (inputs[0][0].shape[0] == X.shape[0] and len(inputs[0]) < 64):
         inputs[0].append(X)
         inputs[1].append(X_metas)
@@ -140,10 +142,10 @@ class Trainer(object):
       test_preds_output.extend([s for s in p])
     assert len(test_preds_output) == n_points
     assert len(labels) == n_points
-    return labels, test_preds_output
+    return labels, test_preds_output, sample_IDs
   
   def evaluate(self, test_data_mapping):
-    labels, test_preds = self.predict(test_data_mapping)
+    labels, test_preds, _ = self.predict(test_data_mapping)
     cos_sims = []
     for label, pred in zip(labels, test_preds):
       sim = np.sum(label * pred)/np.sqrt(np.sum(label*label) * np.sum(pred*pred))
@@ -230,7 +232,7 @@ class SpectraDataset(Dataset):
     X_metas = Variable(t.from_numpy(batch[1])).float()
     y = Variable(t.from_numpy(batch[2])).float()
     weights = Variable(t.from_numpy(batch[3])).float()
-    return (X, X_metas, y, weights)
+    return (X, X_metas, y, weights, batch_samples)
   
   @staticmethod
   def sample_weight(sample):
